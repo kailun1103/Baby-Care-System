@@ -2,6 +2,7 @@ from flask import Flask, Response, render_template
 import cv2
 import tensorflow as tf
 import numpy as np
+import time  # 導入 time 模組來追蹤時間
 
 app = Flask(__name__)
 
@@ -12,6 +13,8 @@ def generate_frames():
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         raise RuntimeError("Cannot open camera")
+
+    danger_start = None  # 記錄首次遇到 Danger!! 的時間
 
     while True:
         ret, frame = cap.read()
@@ -26,15 +29,23 @@ def generate_frames():
         image_array = np.asarray(img)
         normalized_image_array = (image_array.astype(np.float32) / 127.0) - 1
         data[0] = normalized_image_array
-        prediction = model.predict(data)
+        prediction = model.predict(data, verbose=0)  # 禁用進度條
         a, b = prediction[0]
-        if a > 0.6:
-            text = 'ok~'
-        elif b > 0.6:
+        if b > 0.6:
+            if danger_start is None:
+                danger_start = time.time()  # 開始計時
+            elif time.time() - danger_start >= 3:
+                print('trigger')
+                danger_start = None  # 重設計時器
             text = 'Danger!!'
         else:
-            text = 'Processing...'
-        cv2.putText(img, text, (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            danger_start = None  # 重設計時器
+            if a > 0.6:
+                text = 'ok~'
+            else:
+                text = 'Processing...'
+        
+        cv2.putText(img, text, (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
         ret, buffer = cv2.imencode('.jpg', img)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
