@@ -16,9 +16,9 @@ def linebot():
     print(body)
     try:
         json_data = json.loads(body)                         # json 格式化訊息內容
-        access_token = '9hPChjfP1nWy3bd+jaoDAsLTV1EzIGfqb4d2YjVb9oke2jCXFWuwTcvcYgF4NU21X/G1E3BBfL81xHI66sT+4Hl/DOMjKyVc5u8OwzhnLcy8PwRjp2qiY61hQqTkan60xyqKI7cm88nMJVkp/uiHugdB04t89/1O/w1cDnyilFU='
+        imgur_access_token = '9hPChjfP1nWy3bd+jaoDAsLTV1EzIGfqb4d2YjVb9oke2jCXFWuwTcvcYgF4NU21X/G1E3BBfL81xHI66sT+4Hl/DOMjKyVc5u8OwzhnLcy8PwRjp2qiY61hQqTkan60xyqKI7cm88nMJVkp/uiHugdB04t89/1O/w1cDnyilFU='
         secret = '328c65237339774f75bfd7dc108da0c8'
-        line_bot_api = LineBotApi(access_token)              # 確認 token 是否正確
+        line_bot_api = LineBotApi(imgur_access_token)              # 確認 token 是否正確
         handler = WebhookHandler(secret)                     # 確認 secret 是否正確
         signature = request.headers['X-Line-Signature']      # 加入回傳的 headers
         handler.handle(body, signature)                      # 綁定訊息回傳的相關資訊
