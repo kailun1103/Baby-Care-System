@@ -2,6 +2,7 @@ from flask import Flask, Response, render_template
 from imgurpython import ImgurClient
 import tensorflow as tf
 import numpy as np
+import threading
 import datetime
 import shutil
 import time
@@ -61,7 +62,6 @@ def impur_get_url(img):
     # 先儲存image到本地端
     image_filename = datetime.datetime.now().strftime("image/%Y%m%d_%H%M%S.jpg")
     cv2.imwrite(image_filename, img)
-    time.sleep(2)
     print("save image to local")
 
     # 上傳image到Imgur
@@ -71,6 +71,11 @@ def impur_get_url(img):
     image_link = image['link']
     print("upload image to impur")
     return image_link
+
+
+def upload_and_send(img, danger_time):
+    image_url = impur_get_url(img)
+    line_bot_send_msg(image_url, danger_time)
 
 
 def generate_frames():
@@ -94,28 +99,29 @@ def generate_frames():
         # a表示模型預測出正常安全情況的概率或置信度
         # b表示模型預測出某種危險情況的概率或置信度
         a, b = prediction[0]
-        if b > 0.6: # 影像偵測到危險狀態
+        if b > 0.6:
             if danger_state is None:
-                danger_state = time.time()  # 開始計時
-            elif time.time() - danger_state >= 3: # 假設影像處於Danger狀態三秒
+                danger_state = time.time()
+            elif time.time() - danger_state >= 3:
                 print("Danger!!!!!")
-                danger_time = datetime.datetime.now().strftime("%Y年%m月%d日 %H時%M分%S秒") # 記錄當下發生的時間點
-                image_url = impur_get_url(img)
-                line_bot_send_msg(image_url, danger_time)
-                danger_state = None  # 重設影像狀態
+                danger_time = datetime.datetime.now().strftime("%Y年%m月%d日 %H時%M分%S秒")
+                # 在新的執行緒中執行上傳和發送訊息的任務
+                t = threading.Thread(target=upload_and_send, args=(img, danger_time))
+                t.start()
+                danger_state = None
             text = 'Danger!!'
         else:
-            danger_state = None  # 重設影像狀態
-            if a > 0.6: # 影像偵測到安全狀態
+            danger_state = None
+            if a > 0.6:
                 text = 'ok~'
-            else: # 影像偵測到未知狀態
+            else:
                 text = 'Processing...'
-        
+
         cv2.putText(img, text, (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
         ret, buffer = cv2.imencode('.jpg', img)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         
 
 @app.route('/video_feed')
