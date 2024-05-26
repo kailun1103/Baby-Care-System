@@ -21,6 +21,10 @@ model = tf.keras.models.load_model('keras_model.h5', compile=False)  # 載入模
 data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)          # 設定資料陣列
 
 
+line_msg = ""
+trigger = None
+
+
 # 刪除目錄底下的所有文件(圖片)
 def clear_directory(folder_path):
     for filename in os.listdir(folder_path):
@@ -34,8 +38,13 @@ def clear_directory(folder_path):
             print(f'Failed to delete {file_path}. Reason: {e}')
 
 
-def line_bot_send_msg(image_url, danger_time):
+def line_bot_send_msg(image_url, danger_time, state):
     line_bot_api = LineBotApi(line_access_token)
+    if state == "safe":
+        msg_text = '監測安全'
+    else:
+        msg_text = '危險啦幹! 觸發Trigger'
+
     try:
         # 指定圖片的原始內容 URL 和預覽圖片 URL
         original_content_url = image_url
@@ -45,7 +54,7 @@ def line_bot_send_msg(image_url, danger_time):
                 original_content_url=original_content_url, 
                 preview_image_url=preview_image_url
             ),
-            TextSendMessage(text='危險啦幹! 觸發Trigger'),
+            TextSendMessage(text= msg_text),
             TextSendMessage(text= danger_time),
             TextSendMessage(text='237新北市三峽區大學路151號')
         ]
@@ -73,9 +82,43 @@ def impur_get_url(img):
     return image_link
 
 
-def upload_and_send(img, danger_time):
+def upload_and_send(img, danger_time, state):
     image_url = impur_get_url(img)
-    line_bot_send_msg(image_url, danger_time)
+    line_bot_send_msg(image_url, danger_time, state)
+
+
+def check_danger_state():
+    print('not trigger')
+    global trigger
+    trigger = True
+    time.sleep(6)
+    line_bot_api = LineBotApi(line_access_token)
+    # messages = [
+    #     TextSendMessage(text='是否有接收到訊息?(有的話請回答"是")'),
+    # ]
+    # line_bot_api.push_message(line_user_id,messages)
+    previous_msg = "None"  # 初始化為None
+
+    while True:
+        if line_msg == "是":
+            messages = [
+                TextSendMessage(text='本系統將持續監控嬰兒'),
+            ]
+            line_bot_api.push_message(line_user_id,messages)
+            trigger = None
+            with open('data.txt', 'w', encoding='utf-8') as f:
+                f.write(str(""))
+            break
+        else:
+            if line_msg != previous_msg:  # 檢查line_msg是否與前一次迴圈不同
+                print(line_msg)
+                print(previous_msg)
+                previous_msg = line_msg  # 更新previous_msg為當前的line_msg值
+                messages = [
+                    TextSendMessage(text='是否有接收到訊息?(有的話請回答"是")'),
+                ]
+                line_bot_api.push_message(line_user_id,messages)
+
 
 
 def generate_frames():
@@ -83,6 +126,10 @@ def generate_frames():
     if not cap.isOpened():
         raise RuntimeError("Cannot open camera")
     danger_state = None  # 記錄是否遇到 Danger
+
+    timer = time.time()
+    safe_trigger = False
+    global trigger
     
     while True:
         ret, frame = cap.read()
@@ -96,32 +143,88 @@ def generate_frames():
         data[0] = normalized_image_array
         prediction = model.predict(data, verbose=0)
 
+        real_time = datetime.datetime.now().strftime("%Y年%m月%d日 %H時%M分%S秒")
+
         # a表示模型預測出正常安全情況的概率或置信度
         # b表示模型預測出某種危險情況的概率或置信度
-        a, b = prediction[0]
-        if b > 0.6:
-            if danger_state is None:
-                danger_state = time.time()
-            elif time.time() - danger_state >= 3:
-                print("Danger!!!!!")
-                danger_time = datetime.datetime.now().strftime("%Y年%m月%d日 %H時%M分%S秒")
-                # 在新的執行緒中執行上傳和發送訊息的任務
-                t = threading.Thread(target=upload_and_send, args=(img, danger_time))
-                t.start()
-                danger_state = None
-            text = 'Danger!!'
-        else:
-            danger_state = None
-            if a > 0.6:
-                text = 'ok~'
+
+        if trigger == None:
+            print('trigger')
+            if time.time() - timer >= 30:
+                safe_trigger = True
+
+            a, b = prediction[0]
+            if b > 0.6:
+                if danger_state is None:
+                    danger_state = time.time()
+                elif time.time() - danger_state >= 3:
+                    print("Danger!!!!!")
+                    
+                    # 在新的執行緒中執行上傳和發送訊息的任務
+                    t = threading.Thread(target=upload_and_send, args=(img, real_time, "Danger"))
+                    t.start()
+                    n = threading.Thread(target=check_danger_state)
+                    n.start()
+                    danger_state = None
+                    safe_trigger = False
+                    timer = time.time()
+                text = 'Danger!!'
             else:
-                text = 'Processing...'
+                danger_state = None
+                if a > 0.6:
+                    if safe_trigger == True:
+                        print("觸發監控功能")
+                        z = threading.Thread(target=upload_and_send, args=(img, real_time, "safe"))
+                        z.start()
+                        safe_trigger = False
+                        timer = time.time()
+
+                    text = 'ok~'
+                else:
+                    text = 'Processing...'
+        else:
+            continue
 
         cv2.putText(img, text, (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2, cv2.LINE_AA)
         ret, buffer = cv2.imencode('.jpg', img)
         frame = buffer.tobytes()
         yield (b'--frame\r\n'
             b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        
+
+def check_camera_id():
+
+    line_bot_api = LineBotApi(line_access_token)
+    messages = [
+        TextSendMessage(text='歡迎使用嬰兒照護系統,請提供您的Camera ID'),
+    ]
+    line_bot_api.push_message(line_user_id,messages)
+
+    valid_camera_id = "abc123"
+    previous_msg = "None"  # 初始化為None
+
+    while True:
+        if valid_camera_id == line_msg:
+            messages = [
+                TextSendMessage(text='歡迎使用baby care system，本系統將會即時監控嬰兒'),
+            ]
+            line_bot_api.push_message(line_user_id,messages)
+            break
+        else:
+            if line_msg != previous_msg:  # 檢查line_msg是否與前一次迴圈不同
+                previous_msg = line_msg  # 更新previous_msg為當前的line_msg值
+                messages = [
+                    TextSendMessage(text='請提供正確id'),
+                ]
+                line_bot_api.push_message(line_user_id,messages)
+    
+
+
+def line_reeltime_msg():
+    global line_msg
+    while True:
+        with open('data.txt', 'r', encoding='utf-8') as f:
+            line_msg = f.read()
         
 
 @app.route('/video_feed')
@@ -131,7 +234,12 @@ def video_feed():
 
 @app.route('/')
 def index():
+    with open('data.txt', 'w', encoding='utf-8') as f:
+        f.write(str(""))
+    t = threading.Thread(target=line_reeltime_msg)
+    t.start()
     clear_directory("image")
+    # check_camera_id()
     return render_template('index.html')
 
 

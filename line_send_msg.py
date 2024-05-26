@@ -8,16 +8,21 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 
+from config_KEY import line_access_token, line_channel_secret
+
 app = Flask(__name__)
+
 
 @app.route("/", methods=['POST'])
 def linebot():
+    msg = ''
     body = request.get_data(as_text=True)                    # 取得收到的訊息內容
+    print('body')
     print(body)
     try:
         json_data = json.loads(body)                         # json 格式化訊息內容
-        imgur_access_token = '9hPChjfP1nWy3bd+jaoDAsLTV1EzIGfqb4d2YjVb9oke2jCXFWuwTcvcYgF4NU21X/G1E3BBfL81xHI66sT+4Hl/DOMjKyVc5u8OwzhnLcy8PwRjp2qiY61hQqTkan60xyqKI7cm88nMJVkp/uiHugdB04t89/1O/w1cDnyilFU='
-        secret = '328c65237339774f75bfd7dc108da0c8'
+        imgur_access_token = line_access_token
+        secret = line_channel_secret
         line_bot_api = LineBotApi(imgur_access_token)              # 確認 token 是否正確
         handler = WebhookHandler(secret)                     # 確認 secret 是否正確
         signature = request.headers['X-Line-Signature']      # 加入回傳的 headers
@@ -25,12 +30,13 @@ def linebot():
         msg = json_data['events'][0]['message']['text']      # 取得 LINE 收到的文字訊息
         tk = json_data['events'][0]['replyToken']            # 取得回傳訊息的 Token
         # line_bot_api.reply_message(tk,TextSendMessage(msg))  # 回傳訊息
-        line_bot_api.reply_message(tk, ImageSendMessage(original_content_url="https://i.imgur.com/6TeK8jB.jpeg", preview_image_url="https://i.imgur.com/wYS9Wdz.jpg"))
-        print(msg, tk)   
+        with open('data.txt', 'w', encoding='utf-8') as f:
+            if msg != '':
+                f.write(str(msg))
     except Exception as ex:
         print(ex)
         print(body)                                          # 如果發生錯誤，印出收到的內容
-    return 'OK'                                              # 驗證 Webhook 使用，不能省略
+    return msg                                             # 驗證 Webhook 使用，不能省略
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host='127.0.0.1', port=7414)  # 將端口改為5000
