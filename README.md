@@ -1,46 +1,112 @@
 # Baby Care System
-This is a baby care system that monitors the baby in the crib by connecting to a camera. It checks if the baby’s nose is covered, preventing breathing, and sends real-time monitoring messages back to LineBot, allowing for remote caregiving.
 
-## Requirement
+A Flask-based real-time baby monitoring system that uses camera input to detect if a baby’s nose is covered, preventing breathing. Alerts are sent via Line Bot for remote caregiving.
 
-```bash
-Flask==3.0.3
-requests==2.31.0
-imgurpython==1.1.7
-tensorflow==2.16.1
-tensorflow-cpu==2.12.0
-tensorflow-estimator==2.12.0
-tensorflow-intel==2.12.0
-tensorflow-io-gcs-filesystem==0.31.0
-numpy==1.23.5
-line-bot-sdk==3.11.0
-opencv-python==4.9.0.80
-openpyxl==3.1.2
+
+---
+
+## ✨ Features
+
+- **Real-time Video Streaming**  
+  Streams live video from a connected camera to a Flask web interface.  
+- **Nose-Cover Detection**  
+  Uses a pretrained Keras model to detect if the baby’s nose is obstructed.  
+- **Instant Alerts via Line Bot**  
+  Sends notifications (text and image) to caregivers on LINE when a hazard is detected.  
+- **Imgur Integration**  
+  Automatically uploads alert snapshots to Imgur and shares the URL in alerts.  
+- **Configurable Threshold**  
+  Adjust detection sensitivity via a configuration file.
+
+---
+
+## 🛠 Tech Stack
+
+- **Backend:** Flask  
+- **ML Model:** TensorFlow / Keras  
+- **Computer Vision:** OpenCV  
+- **Messaging:** LINE Messaging API (`line-bot-sdk`)  
+- **Image Hosting:** Imgur (`imgurpython`)  
+- **Data Handling:** NumPy, OpenPyXL  
+
+---
+
+## 🚀 Installation
+
+1. **Clone the repository**  
+   ```bash
+   git clone https://github.com/kailun1103/Baby-Care-System.git
+   cd Baby-Care-System
+   ```
+2. **Install dependencies**  
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Configure environment**  
+   - Rename `config_template.py` to `config.py`.  
+   - Edit `config.py` with your LINE channel credentials and Imgur client ID.
+4. **Place the Model**  
+   Ensure `keras_model.h5` is in the project root.
+5. **Run the Application**  
+   ```bash
+   python app.py
+   ```
+   Navigate to `http://localhost:5000` in your browser.
+
+---
+
+## ⚙️ Configuration
+
+Edit `config.py` parameters:
+
+```python
+LINE_CHANNEL_ACCESS_TOKEN = "<your line token>"
+LINE_CHANNEL_SECRET = "<your line secret>"
+IMGUR_CLIENT_ID = "<your imgur client id>"
+DETECTION_THRESHOLD = 0.5  # Probability threshold for nose-cover alarm
 ```
 
-## How to run this project
+---
 
-step1. 
-```bash
-git clone https://github.com/kailun1103/Food_Website.git
+## 📦 Project Structure
+
 ```
-step2.
-```bash
-pip install -r requirements.txt
+.
+├── app.py
+├── config.py
+├── keras_model.h5
+├── image/
+│   └── monitoring.png
+├── templates/
+│   └── index.html
+├── line_send_msg.py
+├── impur_upload_get_url.py
+├── requirements.txt
+└── README.md
 ```
-step3.
-Set up your Line developer account and change your config_KEY.
-step4.
-Register an Imgur App and generate a token.
 
-## demo
+---
 
+## 🤝 Contributing
 
-## Ref
+1. Fork this repo  
+2. Create a feature branch (`git checkout -b feature/YourFeature`)  
+3. Commit changes (`git commit -m 'Add feature'`)  
+4. Push branch (`git push origin feature/YourFeature`)  
+5. Open a Pull Request  
 
-1.https://github.com/miguelgrinberg/flask-video-streaming
+Please follow PEP8 guidelines and comment your code.
 
-2.https://github.com/hpc203/picodet-onnxruntime.
+---
 
+## 🔗 References
 
+1. [Flask Video Streaming by miguelgrinberg](https://github.com/miguelgrinberg/flask-video-streaming)  
+2. [Picodet ONNX Runtime Example](https://github.com/hpc203/picodet-onnxruntime)
 
+---
+
+## ✉️ Contact
+
+- **Email:** kailunchang1103@gmail.com  
+- **GitHub:** [kailun1103](https://github.com/kailun1103)
